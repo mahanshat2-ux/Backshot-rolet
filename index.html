@@ -2,33 +2,39 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buckshot Roulette - Ultimate Table Edition</title>
-    <!-- PeerJS CDN for WebRTC Multiplayer -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>رولت باک‌شات - بتل رویال ۴ نفره</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700;900&family=Vazirmatn:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #080808;
-            --table-color: #1c1815;
-            --table-border: #3a2e2b;
-            --accent-red: #ff3333;
-            --accent-green: #33ff66;
-            --accent-gold: #ffcc00;
-            --text-color: #e0e0e0;
+            --bg-dark: #050508;
+            --table-felt: #161210;
+            --table-border: #2c221d;
+            --accent-red: #ff3b3b;
+            --accent-green: #2ecc71;
+            --accent-gold: #f39c12;
+            --accent-cyan: #00f0ff;
+            --accent-purple: #9b59b6;
         }
 
         * {
             box-sizing: border-box;
             user-select: none;
-            margin: 0;
-            padding: 0;
-            font-family: 'Courier New', Courier, monospace;
+            -webkit-user-select: none;
+            touch-action: manipulation;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            background-color: var(--bg-dark);
+            color: #ececec;
+            font-family: 'Vazirmatn', 'Chakra Petch', sans-serif;
             height: 100vh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
             overflow: hidden;
             display: flex;
             justify-content: center;
@@ -36,77 +42,1563 @@
         }
 
         .shake {
-            animation: shakeAnim 0.3s cubic-bezier(.36,.07,.19,.97) both;
+            animation: shakeAnim 0.35s cubic-bezier(.36,.07,.19,.97) both;
         }
 
         @keyframes shakeAnim {
-            10%, 90% { transform: translate3d(-4px, 2px, 0); }
-            20%, 80% { transform: translate3d(6px, -4px, 0); }
-            30%, 50%, 70% { transform: translate3d(-8px, 6px, 0); }
-            40%, 60% { transform: translate3d(8px, -6px, 0); }
+            10%, 90% { transform: translate3d(-8px, 4px, 0); }
+            20%, 80% { transform: translate3d(10px, -6px, 0); }
+            30%, 50%, 70% { transform: translate3d(-12px, 10px, 0); }
+            40%, 60% { transform: translate3d(12px, -10px, 0); }
         }
 
-        #game-container {
-            width: 1050px;
-            height: 720px;
-            background: #050505;
-            border: 4px solid #222;
-            box-shadow: 0 0 60px rgba(0, 0, 0, 1);
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            overflow: hidden;
+        .flash-red {
+            animation: flashRedAnim 0.4s ease-out;
+        }
+        @keyframes flashRedAnim {
+            0% { box-shadow: inset 0 0 120px rgba(255, 0, 0, 0.85); }
+            100% { box-shadow: inset 0 0 0px transparent; }
         }
 
-        /* Scanline Overlay */
-        #game-container::after {
+        .crt-overlay::after {
             content: " ";
             position: absolute;
             top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
-            background-size: 100% 4px;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%),
+                        radial-gradient(circle, transparent 60%, rgba(0,0,0,0.9) 100%);
+            background-size: 100% 4px, 100% 100%;
             pointer-events: none;
-            z-index: 10;
+            z-index: 30;
         }
 
-        .menu-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(8, 8, 8, 0.96);
+        .glass-panel {
+            background: rgba(14, 14, 18, 0.95);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+        }
+
+        .table-felt-mat {
+            background: radial-gradient(circle at center, #261f1c 0%, #100c0a 100%);
+            border: 12px solid var(--table-border);
+            box-shadow: inset 0 0 120px rgba(0,0,0,0.98), 0 0 50px rgba(0,0,0,0.9);
+        }
+
+        .hp-node {
+            width: 14px;
+            height: 22px;
+            background: var(--accent-green);
+            border: 1px solid #000;
+            box-shadow: 0 0 6px var(--accent-green);
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+        .hp-node.bot-node {
+            background: var(--accent-red);
+            box-shadow: 0 0 6px var(--accent-red);
+        }
+        .hp-node.lost {
+            background: #222 !important;
+            box-shadow: none !important;
+            opacity: 0.25;
+        }
+
+        .item-slot {
+            width: 44px;
+            height: 44px;
+            background: rgba(28, 22, 20, 0.95);
+            border: 2px solid #4a3a33;
+            border-radius: 8px;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 20;
-            gap: 20px;
-        }
-
-        .title {
-            font-size: 3rem;
-            color: var(--accent-red);
-            text-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-        }
-
-        .btn {
-            background: #1c1c1c;
-            color: #fff;
-            border: 2px solid #444;
-            padding: 12px 40px;
-            font-size: 1.1rem;
+            font-size: 1.25rem;
             cursor: pointer;
-            transition: all 0.2s;
-            width: 260px;
-            text-align: center;
-            text-transform: uppercase;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            flex-shrink: 0;
+        }
+        .item-slot:hover:not(.disabled) {
+            border-color: var(--accent-gold);
+            transform: translateY(-3px) scale(1.08);
+            background: #3d302a;
+            box-shadow: 0 0 12px rgba(243, 156, 18, 0.4);
+        }
+        .item-slot.disabled {
+            cursor: not-allowed;
+            opacity: 0.35;
+            filter: grayscale(1);
         }
 
-        .btn:hover {
-            background: var(--accent-red);
+        .player-seat {
+            transition: all 0.3s ease;
+        }
+        .player-seat.active-turn {
+            border-color: var(--accent-gold) !important;
+            box-shadow: 0 0 20px rgba(243, 156, 18, 0.5) !important;
+            transform: scale(1.02);
+        }
+        .player-seat.dead {
+            opacity: 0.35;
+            filter: grayscale(0.8);
+            border-color: #444 !important;
+        }
+
+        .shotgun-barrel {
+            transition: all 0.4s ease;
+        }
+        .sawed-off {
+            color: var(--accent-red) !important;
+            text-shadow: 0 0 12px var(--accent-red);
+            transform: scale(1.05);
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+</head>
+<body class="crt-overlay">
+
+    <div id="game-container" class="relative w-full max-w-6xl h-[95vh] md:h-[820px] bg-slate-950 border-2 md:border-4 border-slate-900 rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col justify-between p-2 md:p-5 transition-transform">
+
+        <!-- ================= MAIN MENU OVERLAY ================= -->
+        <div id="main-menu" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/98 p-6 backdrop-blur-md">
+            <div class="text-center mb-6">
+                <div id="menu-badge" class="inline-block px-4 py-1 bg-rose-950/80 border border-rose-600/50 rounded-full text-xs font-bold text-rose-400 mb-3 tracking-widest uppercase">
+                    بتل رویال ۴ نفره مرگبار
+                </div>
+                <h1 id="menu-title" class="text-4xl md:text-6xl font-black text-rose-600 tracking-wider mb-2 drop-shadow-[0_0_25px_rgba(225,29,72,0.7)]">
+                    رولت باک‌شات
+                </h1>
+                <p id="menu-subtitle" class="text-slate-400 text-xs md:text-sm font-semibold max-w-md">
+                    نبرد استراتژیک ۱۲-گیج روی میز مرگ - بقا تا آخرین نفر
+                </p>
+            </div>
+
+            <div class="w-full max-w-xs space-y-3">
+                <input type="text" id="player-name-input" class="w-full bg-slate-900 border-2 border-slate-700 focus:border-rose-500 text-center py-2.5 px-4 text-white text-base rounded-xl outline-none transition-colors" placeholder="نام بازیکن" value="بازیکن ۱">
+                
+                <button onclick="showSinglePlayerSetup()" class="w-full py-3.5 bg-rose-700 hover:bg-rose-600 text-white font-extrabold rounded-xl shadow-[0_0_20px_rgba(225,29,72,0.4)] transition-all transform hover:scale-102 active:scale-98 flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-gamepad"></i> <span id="btn-text-sp">بازی تک‌نفره (تنظیمات بات‌ها)</span>
+                </button>
+                <button onclick="showMultiplayerMenu()" class="w-full py-3 bg-cyan-900/60 hover:bg-cyan-800 text-cyan-200 font-bold rounded-xl border border-cyan-600/50 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-globe"></i> <span id="btn-text-multi">مولتی‌پلیر آنلاین (WebRTC)</span>
+                </button>
+                <button onclick="showSettings()" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-semibold rounded-xl border border-slate-800 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-gear"></i> <span id="btn-text-opt">تنظیمات</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= SINGLE PLAYER SETUP MODAL ================= -->
+        <div id="sp-setup-menu" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/98 p-6 backdrop-blur-md hidden">
+            <div class="glass-panel p-6 rounded-3xl w-full max-w-md border border-slate-700 space-y-6">
+                <div class="border-b border-slate-800 pb-3 text-center">
+                    <h2 id="sp-setup-title" class="text-2xl font-black text-rose-500">تنظیمات بازی تک‌نفره</h2>
+                    <p id="sp-setup-sub" class="text-xs text-slate-400 mt-1">تعداد بازیکنان و سطح هوش مصنوعی بات‌ها را تعیین کنید</p>
+                </div>
+
+                <div>
+                    <label id="lbl-table-players" class="block text-xs font-bold text-slate-300 mb-2">تعداد بازیکنان میز:</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="setPlayerCount(2)" id="btn-count-2" class="count-btn py-2.5 px-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-xs font-bold transition-all text-center cursor-pointer">
+                            ۲ نفره<br><span class="text-[10px] text-slate-400">(شما + ۱ بات)</span>
+                        </button>
+                        <button type="button" onclick="setPlayerCount(3)" id="btn-count-3" class="count-btn py-2.5 px-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-xs font-bold transition-all text-center cursor-pointer">
+                            ۳ نفره<br><span class="text-[10px] text-slate-400">(شما + ۲ بات)</span>
+                        </button>
+                        <button type="button" onclick="setPlayerCount(4)" id="btn-count-4" class="count-btn py-2.5 px-2 bg-rose-700 border-2 border-rose-500 rounded-xl text-xs font-bold transition-all text-center cursor-pointer text-white">
+                            ۴ نفره<br><span class="text-[10px] text-rose-200">(شما + ۳ بات)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label id="lbl-ai-diff" class="block text-xs font-bold text-slate-300 mb-2">سطح هوش مصنوعی:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="setDifficulty('easy')" id="diff-easy" class="diff-btn py-2 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-emerald-400 cursor-pointer">
+                            🌱 ساده
+                        </button>
+                        <button type="button" onclick="setDifficulty('normal')" id="diff-normal" class="diff-btn py-2 px-3 bg-amber-950 border-2 border-amber-500 rounded-xl text-xs font-bold text-amber-300 cursor-pointer">
+                            ⚖️ معمولی
+                        </button>
+                        <button type="button" onclick="setDifficulty('hard')" id="diff-hard" class="diff-btn py-2 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-rose-400 cursor-pointer">
+                            🔥 سخت
+                        </button>
+                        <button type="button" onclick="setDifficulty('impossible')" id="diff-impossible" class="diff-btn py-2 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-purple-400 cursor-pointer">
+                            💀 غیرممکن
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-3">
+                    <button id="btn-back-sp" onclick="hideSinglePlayerSetup()" class="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition-all cursor-pointer">
+                        بازگشت
+                    </button>
+                    <button id="btn-start-sp" onclick="startSinglePlayerGame()" class="w-2/3 py-3 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-extrabold rounded-xl shadow-lg text-sm transition-all cursor-pointer">
+                        شروع بازی 🚀
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= MULTIPLAYER OVERLAY ================= -->
+        <div id="multi-menu" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/98 p-6 backdrop-blur-md hidden">
+            <div class="glass-panel p-6 rounded-3xl w-full max-w-sm border border-cyan-500/50 text-center space-y-4">
+                <h2 id="multi-title" class="text-2xl font-black text-cyan-400">لابی آنلاین (PeerJS)</h2>
+                <p id="multi-sub" class="text-xs text-slate-300">با دوستان خود در سراسر جهان آنلاین بازی کنید.</p>
+                
+                <div class="space-y-3">
+                    <button id="btn-host-room" onclick="hostMultiplayerGame()" class="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow-lg transition-all cursor-pointer">
+                        ساخت اتاق میزبان
+                    </button>
+                    <div class="flex gap-2">
+                        <input type="text" id="join-code-input" placeholder="کد اتاق میزبان" class="w-2/3 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-center text-white outline-none focus:border-cyan-500 font-mono">
+                        <button id="btn-join-room" onclick="joinMultiplayerGame()" class="w-1/3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs cursor-pointer">
+                            پیوستن
+                        </button>
+                    </div>
+                </div>
+
+                <div id="multi-status-box" class="p-2 bg-black/60 rounded-xl text-xs text-amber-400 font-mono hidden">
+                    وضعیت: آماده اتصال...
+                </div>
+
+                <button id="btn-back-multi" onclick="hideMultiplayerMenu()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold rounded-xl cursor-pointer">
+                    بازگشت به منو
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= TARGET SELECTOR MODAL ================= -->
+        <div id="target-modal" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md hidden p-4">
+            <div class="glass-panel p-6 rounded-3xl w-full max-w-sm border border-rose-600/50 text-center space-y-4 shadow-2xl">
+                <h3 id="target-modal-title" class="text-xl font-black text-rose-500">انتخاب هدف شلیک</h3>
+                <p id="target-modal-sub" class="text-xs text-slate-300">می‌خواهید لوله تفنگ به سمت کدام بازیکن نشانه برود؟</p>
+
+                <div id="target-buttons-container" class="space-y-2.5">
+                    <!-- دکمه‌های پویا -->
+                </div>
+
+                <button id="btn-cancel-target" onclick="closeTargetModal()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold rounded-xl cursor-pointer">
+                    انصراف
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= HANDCUFFS MODAL ================= -->
+        <div id="handcuffs-modal" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md hidden p-4">
+            <div class="glass-panel p-6 rounded-3xl w-full max-w-sm border border-amber-500/50 text-center space-y-4 shadow-2xl">
+                <h3 id="handcuffs-modal-title" class="text-xl font-black text-amber-400">🔗 انتخاب هدف دستبند</h3>
+                <p id="handcuffs-modal-sub" class="text-xs text-slate-300">کدام بازیکن برای یک نوبت دستبند بخورد؟</p>
+
+                <div id="handcuffs-buttons-container" class="space-y-2.5">
+                    <!-- دکمه‌های پویا -->
+                </div>
+
+                <button id="btn-cancel-handcuffs" onclick="closeHandcuffsModal()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold rounded-xl cursor-pointer">
+                    انصراف
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= ADRENALINE MODAL ================= -->
+        <div id="adrenaline-modal" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md hidden p-4">
+            <div class="glass-panel p-6 rounded-3xl w-full max-w-md border border-cyan-500/50 text-center space-y-4 shadow-2xl">
+                <div id="adren-step-1">
+                    <h3 id="adren-title-1" class="text-xl font-black text-cyan-400 mb-1">💉 آدرنالین (سرقت آیتم)</h3>
+                    <p id="adren-sub-1" class="text-xs text-slate-300 mb-4">از کدام بازیکن می‌خواهید آیتم بدزدید؟</p>
+                    <div id="adren-opponents-container" class="space-y-2.5"></div>
+                </div>
+
+                <div id="adren-step-2" class="hidden">
+                    <h3 id="adren-title-2" class="text-xl font-black text-emerald-400 mb-1">🎁 انتخاب آیتم برای سرقت</h3>
+                    <p id="adren-victim-txt" class="text-xs text-slate-300 mb-3">روی آیتم مورد نظر کلیک کنید:</p>
+                    <div id="adren-items-container" class="flex flex-wrap justify-center gap-2 p-3 bg-black/50 rounded-2xl border border-slate-800 max-h-48 overflow-y-auto"></div>
+                </div>
+
+                <button id="btn-cancel-adren" onclick="closeAdrenalineModal()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold rounded-xl mt-3 cursor-pointer">
+                    انصراف
+                </button>
+            </div>
+        </div>
+
+        <!-- SETTINGS OVERLAY -->
+        <div id="settings-menu" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/98 p-6 backdrop-blur-md hidden">
+            <div class="glass-panel p-6 rounded-2xl w-full max-w-sm border border-slate-700 space-y-5">
+                <h2 id="settings-title" class="text-2xl font-bold text-rose-500 text-center border-b border-slate-800 pb-3">تنظیمات بازی</h2>
+                <div class="flex justify-between items-center">
+                    <label id="lbl-volume" class="text-sm text-slate-300 font-bold">میزان صدا:</label>
+                    <input type="range" id="volume-slider" min="0" max="100" value="80" onchange="updateVolume(this.value)" class="accent-rose-500 cursor-pointer">
+                </div>
+                <div class="flex justify-between items-center">
+                    <label id="lbl-language" class="text-sm text-slate-300 font-bold">زبان:</label>
+                    <select id="lang-select" onchange="changeLanguage(this.value)" class="bg-slate-900 text-white border border-slate-700 rounded-lg p-2 text-sm outline-none cursor-pointer">
+                        <option value="fa" selected>فارسی</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+                <button id="btn-save-settings" onclick="hideSettings()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all cursor-pointer">
+                    تایید و بازگشت
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= 4-PLAYER TOP DOWN TABLE PLAYGROUND ================= -->
+        <div class="table-felt-mat relative w-full h-full rounded-2xl p-2 md:p-4 flex flex-col justify-between overflow-hidden">
+            
+            <!-- TOP PLAYER SLOT -->
+            <div class="flex justify-center w-full z-10">
+                <div id="seat-top" class="player-seat bg-slate-950/90 backdrop-blur-sm p-2 md:p-3 rounded-2xl border border-slate-800 min-w-[200px] md:min-w-[260px] max-w-[320px]">
+                    <div class="flex justify-between items-center mb-1">
+                        <span id="seat-top-name" class="text-xs md:text-sm font-extrabold text-rose-500">بات آلفا</span>
+                        <span id="seat-top-hp-txt" class="text-[10px] md:text-xs font-bold text-slate-400">۵/۵</span>
+                    </div>
+                    <div id="seat-top-hp" class="flex gap-1 mb-1"></div>
+                    <div id="seat-top-items" class="flex gap-1 bg-black/40 p-1 rounded-lg border border-slate-800/80 min-h-[46px] items-center overflow-x-auto"></div>
+                </div>
+            </div>
+
+            <!-- MIDDLE ROW -->
+            <div class="flex justify-between items-center w-full z-10 my-auto my-1">
+                
+                <!-- LEFT PLAYER SLOT -->
+                <div id="seat-left" class="player-seat bg-slate-950/90 backdrop-blur-sm p-2 rounded-2xl border border-slate-800 w-[140px] md:w-[190px]">
+                    <div class="flex justify-between items-center mb-1">
+                        <span id="seat-left-name" class="text-xs font-extrabold text-purple-400 truncate">بات بتا</span>
+                        <span id="seat-left-hp-txt" class="text-[10px] font-bold text-slate-400">۵/۵</span>
+                    </div>
+                    <div id="seat-left-hp" class="flex gap-1 mb-1"></div>
+                    <div id="seat-left-items" class="flex gap-1 bg-black/40 p-1 rounded-lg border border-slate-800/80 min-h-[42px] items-center overflow-x-auto"></div>
+                </div>
+
+                <!-- CENTER STAGE -->
+                <div class="flex flex-col items-center justify-center gap-2 mx-1 flex-1 max-w-md">
+                    <div id="status-display" class="bg-slate-950/95 border-2 border-rose-600/70 px-4 md:px-6 py-1.5 rounded-xl text-center shadow-[0_0_20px_rgba(225,29,72,0.25)] w-full">
+                        <span id="status-text" class="text-xs md:text-sm font-bold text-rose-200">نوبت شماست</span>
+                    </div>
+
+                    <div class="relative w-full h-20 md:h-24 bg-slate-950/85 border border-slate-800 rounded-2xl flex items-center justify-center p-2 shadow-inner">
+                        <div id="shotgun-text" class="shotgun-barrel text-base md:text-xl font-black text-slate-300 tracking-wider flex items-center gap-2 select-none">
+                            <span class="text-xl md:text-2xl">🔫</span>
+                            <span id="shotgun-label">وینچستر ۱۲-گیج</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-center gap-3 bg-black/70 px-3 py-1 rounded-full border border-slate-800 text-[11px] md:text-xs font-bold w-full">
+                        <div class="flex items-center gap-1 text-rose-400">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block shadow-[0_0_6px_#f43f5e]"></span>
+                            <span id="live-count-txt">پر: ۰</span>
+                        </div>
+                        <div class="h-3 w-px bg-slate-700"></div>
+                        <div class="flex items-center gap-1 text-slate-400">
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block"></span>
+                            <span id="blank-count-txt">پوچ: ۰</span>
+                        </div>
+                        <div class="h-3 w-px bg-slate-700"></div>
+                        <div class="flex items-center gap-1 text-cyan-400">
+                            <i class="fa-solid fa-arrows-rotate" id="turn-dir-icon"></i>
+                            <span id="turn-dir-txt">پادساعت‌گرد (چپ‌گرد)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT PLAYER SLOT -->
+                <div id="seat-right" class="player-seat bg-slate-950/90 backdrop-blur-sm p-2 rounded-2xl border border-slate-800 w-[140px] md:w-[190px]">
+                    <div class="flex justify-between items-center mb-1">
+                        <span id="seat-right-name" class="text-xs font-extrabold text-cyan-400 truncate">بات گاما</span>
+                        <span id="seat-right-hp-txt" class="text-[10px] font-bold text-slate-400">۵/۵</span>
+                    </div>
+                    <div id="seat-right-hp" class="flex gap-1 mb-1"></div>
+                    <div id="seat-right-items" class="flex gap-1 bg-black/40 p-1 rounded-lg border border-slate-800/80 min-h-[42px] items-center overflow-x-auto"></div>
+                </div>
+
+            </div>
+
+            <!-- BOTTOM PLAYER SLOT (YOU) -->
+            <div class="flex justify-center w-full z-10 relative">
+                <!-- Dedicated Separate Turn Timer Box on Bottom Left -->
+                <div id="turn-timer-box" class="absolute left-0 bottom-0 bg-slate-900/95 border border-cyan-500/50 rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-lg hidden">
+                    <i class="fa-solid fa-hourglass-half text-cyan-400 animate-pulse text-xs"></i>
+                    <span id="turn-timer-val" class="text-xs font-mono font-bold text-cyan-200">60 ثانیه</span>
+                </div>
+
+                <div id="seat-bottom" class="player-seat bg-slate-950/90 backdrop-blur-sm p-2 md:p-3 rounded-2xl border border-slate-800 min-w-[200px] md:min-w-[260px] max-w-[320px]">
+                    <div class="flex justify-between items-center mb-1">
+                        <span id="seat-bottom-name" class="text-xs md:text-sm font-extrabold text-emerald-400">شما (بازیکن ۱)</span>
+                        <span id="seat-bottom-hp-txt" class="text-[10px] md:text-xs font-bold text-slate-400">۵/۵</span>
+                    </div>
+                    <div id="seat-bottom-hp" class="flex gap-1 mb-1"></div>
+                    <div id="seat-bottom-items" class="flex gap-1 bg-black/40 p-1 rounded-lg border border-slate-800/80 min-h-[46px] items-center overflow-x-auto"></div>
+                </div>
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="flex justify-center gap-3 mt-1.5 z-10">
+                <button id="btn-self" onclick="playerAction('self')" class="flex-1 max-w-[170px] py-2.5 bg-cyan-950 hover:bg-cyan-900 border-2 border-cyan-500/50 text-cyan-200 font-extrabold rounded-xl text-xs shadow-lg transition-all transform hover:scale-102 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer">
+                    شلیک به خود
+                </button>
+                <button id="btn-opponent" onclick="playerAction('opponent')" class="flex-1 max-w-[170px] py-2.5 bg-rose-950 hover:bg-rose-900 border-2 border-rose-600/60 text-rose-200 font-extrabold rounded-xl text-xs shadow-lg transition-all transform hover:scale-102 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer">
+                    شلیک به حریف
+                </button>
+            </div>
+
+        </div>
+
+        <!-- GAME OVER MODAL -->
+        <div id="game-over-modal" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-lg hidden p-6">
+            <div class="glass-panel p-8 rounded-3xl max-w-sm w-full text-center border border-slate-800">
+                <div id="end-icon" class="text-6xl mb-3">☠️</div>
+                <h2 id="end-title" class="text-3xl font-black text-rose-500 mb-2">پایان بازی</h2>
+                <p id="end-msg" class="text-slate-400 text-sm mb-6">گلوله آتشین وینچستر به زندگی شما پایان داد.</p>
+                <button id="btn-restart-menu" onclick="resetGameToMenu()" class="w-full py-3.5 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-extrabold rounded-xl shadow-xl transition-all cursor-pointer">
+                    بازگشت به منوی اصلی
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        class GameSoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playShotgunBlast() {
+                if (!this.ctx || audioVolume === 0) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const bufferSize = this.ctx.sampleRate * 0.5;
+                    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.08));
+                    }
+
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buffer;
+
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(1200, now);
+                    filter.frequency.exponentialRampToValueAtTime(40, now + 0.4);
+
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(audioVolume, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    noise.start();
+
+                    const sub = this.ctx.createOscillator();
+                    const subGain = this.ctx.createGain();
+                    sub.type = 'sine';
+                    sub.frequency.setValueAtTime(160, now);
+                    sub.frequency.exponentialRampToValueAtTime(30, now + 0.3);
+
+                    subGain.gain.setValueAtTime(audioVolume * 0.9, now);
+                    subGain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+                    sub.connect(subGain);
+                    subGain.connect(this.ctx.destination);
+                    sub.start();
+                    sub.stop(now + 0.35);
+                } catch(e){}
+            }
+
+            playBlankClick() {
+                if (!this.ctx || audioVolume === 0) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(900, now);
+                    osc.frequency.exponentialRampToValueAtTime(150, now + 0.04);
+
+                    gain.gain.setValueAtTime(audioVolume * 0.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(now + 0.04);
+                } catch(e){}
+            }
+
+            playItemUse() {
+                if (!this.ctx || audioVolume === 0) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(350, now);
+                    osc.frequency.exponentialRampToValueAtTime(700, now + 0.12);
+
+                    gain.gain.setValueAtTime(audioVolume * 0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(now + 0.12);
+                } catch(e){}
+            }
+
+            playStealSound() {
+                if (!this.ctx || audioVolume === 0) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(500, now);
+                    osc.frequency.linearRampToValueAtTime(1200, now + 0.18);
+
+                    gain.gain.setValueAtTime(audioVolume * 0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(now + 0.2);
+                } catch(e){}
+            }
+        }
+
+        const sound = new GameSoundFX();
+
+        const ITEMS_DEF = {
+            saw: { icon: '🪚', nameEn: 'Saw (Double Damage)', nameFa: 'اره (برش لوله - آسیب ۲ برابری)' },
+            beer: { icon: '🍺', nameEn: 'Beer (Rack Slide)', nameFa: 'آبجو (خروج گلوله جاری)' },
+            cig: { icon: '🚬', nameEn: 'Cigarette (+1 HP)', nameFa: 'سیگار (+۱ جان)' },
+            magnifier: { icon: '🔍', nameEn: 'Magnifier (Peek Shell)', nameFa: 'ذره‌بین (مشاهده گلوله جاری)' },
+            handcuffs: { icon: '🔗', nameEn: 'Handcuffs (Skip Turn)', nameFa: 'دستبند (اسکیپ نوبت حریف)' },
+            adrenaline: { icon: '💉', nameEn: 'Adrenaline (Steal Item)', nameFa: 'آدرنالین (سرقت آیتم از حریف)' },
+            reverse: { icon: '🔄', nameEn: 'Reverse Turn Order', nameFa: 'معکوس‌کننده (تغییر جهت نوبت‌ها)' }
+        };
+
+        const TRANSLATIONS = {
+            fa: {
+                menuBadge: "بتل رویال ۴ نفره مرگبار",
+                menuTitle: "رولت باک‌شات",
+                menuSub: "نبرد استراتژیک ۱۲-گیج روی میز مرگ - بقا تا آخرین نفر",
+                playerNamePlaceholder: "نام بازیکن",
+                defaultPlayerName: "بازیکن ۱",
+                btnSp: "بازی تک‌نفره (تنظیمات بات‌ها)",
+                btnMulti: "مولتی‌پلیر آنلاین (WebRTC)",
+                btnOpt: "تنظیمات",
+                spSetupTitle: "تنظیمات بازی تک‌نفره",
+                spSetupSub: "تعداد بازیکنان و سطح هوش مصنوعی بات‌ها را تعیین کنید",
+                lblTablePlayers: "تعداد بازیکنان میز:",
+                btnCount2: "۲ نفره",
+                btnCount2Sub: "(شما + ۱ بات)",
+                btnCount3: "۳ نفره",
+                btnCount3Sub: "(شما + ۲ بات)",
+                btnCount4: "۴ نفره",
+                btnCount4Sub: "(شما + ۳ بات)",
+                lblAiDiff: "سطح هوش مصنوعی:",
+                diffEasy: "🌱 ساده",
+                diffNormal: "⚖️ معمولی",
+                diffHard: "🔥 سخت",
+                diffImpossible: "💀 غیرممکن",
+                btnBackSp: "بازگشت",
+                btnStartSp: "شروع بازی 🚀",
+                multiTitle: "لابی آنلاین (PeerJS)",
+                multiSub: "با دوستان خود در سراسر جهان آنلاین بازی کنید.",
+                btnHostRoom: "ساخت اتاق میزبان",
+                joinCodePlaceholder: "کد اتاق میزبان",
+                btnJoinRoom: "پیوستن",
+                statusReady: "وضعیت: آماده اتصال...",
+                btnBackMulti: "بازگشت به منو",
+                targetModalTitle: "انتخاب هدف شلیک",
+                targetModalSub: "می‌خواهید لوله تفنگ به سمت کدام بازیکن نشانه برود؟",
+                btnCancelTarget: "انصراف",
+                handcuffsModalTitle: "🔗 انتخاب هدف دستبند",
+                handcuffsModalSub: "کدام بازیکن برای یک نوبت دستبند بخورد؟",
+                btnCancelHandcuffs: "انصراف",
+                adrenTitle1: "💉 آدرنالین (سرقت آیتم)",
+                adrenSub1: "از کدام بازیکن می‌خواهید آیتم بدزدید؟",
+                adrenTitle2: "🎁 انتخاب آیتم برای سرقت",
+                adrenVictimTxt: "روی آیتم مورد نظر کلیک کنید:",
+                btnCancelAdren: "انصراف",
+                settingsTitle: "تنظیمات بازی",
+                lblVolume: "میزان صدا:",
+                lblLanguage: "زبان:",
+                btnSaveSettings: "تایید و بازگشت",
+                shotgunLabel: "وینچستر ۱۲-گیج",
+                liveCount: "پر",
+                blankCount: "پوچ",
+                btnSelf: "شلیک به خود",
+                btnOpponent: "شلیک به حریف",
+                gameOverTitle: "پایان بازی",
+                gameOverMsg: "گلوله آتشین وینچستر به زندگی شما پایان داد.",
+                btnRestartMenu: "بازگشت به منوی اصلی",
+                youLabel: "شما",
+                botAlpha: "بات آلفا",
+                botBeta: "بات بتا",
+                botGamma: "بات گاما",
+                roundStarted: (r, name) => `راند ${r} آغاز شد! خشاب پر شد. شروع‌کننده: ${name}`,
+                magEmpty: "خشاب خالی شد! در حال شروع راند جدید...",
+                statusYourTurn: (name) => `نوبت شماست (${name})! تصمیم بگیرید:`,
+                statusBotTurn: (name) => `نوبت ${name} است... (در حال تفکر)`,
+                statusHandcuffed: (name) => `دستبند فعال بود! نوبت ${name} اسکیپ شد.`,
+                statusSelfShootLive: (shooter, dmg) => `${shooter} به خودش شلیک کرد! (گلوله پر - ${dmg} آسیب)`,
+                statusShootOther: (shooter, target, dmg) => `${shooter} به ${target} شلیک کرد! (${dmg} آسیب)`,
+                statusBlankSelf: (shooter) => `کلیک... گلوله پوچ! ${shooter} نوبت اضافه گرفت.`,
+                statusBlankOther: "کلیک... گلوله پوچ بود!",
+                statusCig: (name) => `${name} سیگار کشید و ۱ واحد جان بازیابی کرد!`,
+                statusSaw: (name) => `${name} لوله تفنگ را اره کرد! شلیک بعدی ۲ آسیب دارد.`,
+                statusMagnifier: (name, shell) => `${name} از ذره‌بین استفاده کرد: گلوله جاری ${shell} است.`,
+                shellLive: "پر (آتشین)",
+                shellBlank: "پوچ",
+                statusBeer: (name, shell) => `${name} آبجو سر کشید! گلوله ${shell} از خشاب خارج شد.`,
+                statusHandcuffsUsed: (player, target) => `${player} به ${target} دستبند زد!`,
+                statusReverse: (player, dir) => `${player} جهت نوبت‌ها را معکوس کرد! جهت: ${dir}`,
+                dirClockwise: "ساعت‌گرد (راست‌گرد)",
+                dirCounter: "پادساعت‌گرد (چپ‌گرد)",
+                statusAdrenaline: (player, item, victim) => `${player} آیتم ${item} را از ${victim} دزدید!`,
+                timerExpired: "زمان شما به اتمام رسید و به‌طور خودکار به خود شلیک کردید."
+            },
+            en: {
+                menuBadge: "BATTLE ROYALE 4-PLAYER",
+                menuTitle: "BUCKSHOT ROULETTE",
+                menuSub: "Strategic 12-Gauge Table Death Battle",
+                playerNamePlaceholder: "Player Name",
+                defaultPlayerName: "Player 1",
+                btnSp: "Single Player (Bot Setup)",
+                btnMulti: "Online Multiplayer (WebRTC)",
+                btnOpt: "Settings",
+                spSetupTitle: "Single Player Setup",
+                spSetupSub: "Configure players count and AI difficulty",
+                lblTablePlayers: "Players at Table:",
+                btnCount2: "2 Players",
+                btnCount2Sub: "(You + 1 Bot)",
+                btnCount3: "3 Players",
+                btnCount3Sub: "(You + 2 Bots)",
+                btnCount4: "4 Players",
+                btnCount4Sub: "(You + 3 Bots)",
+                lblAiDiff: "AI Difficulty:",
+                diffEasy: "🌱 Easy",
+                diffNormal: "⚖️ Normal",
+                diffHard: "🔥 Hard",
+                diffImpossible: "💀 Impossible",
+                btnBackSp: "Back",
+                btnStartSp: "Start Game 🚀",
+                multiTitle: "Online Lobby",
+                multiSub: "Play online with friends worldwide.",
+                btnHostRoom: "Host Room",
+                joinCodePlaceholder: "Host Room Code",
+                btnJoinRoom: "Join",
+                statusReady: "Status: Ready...",
+                btnBackMulti: "Back to Menu",
+                targetModalTitle: "Select Shot Target",
+                targetModalSub: "Choose which player to aim at:",
+                btnCancelTarget: "Cancel",
+                handcuffsModalTitle: "🔗 Handcuff Target",
+                handcuffsModalSub: "Choose player to skip turn:",
+                btnCancelHandcuffs: "Cancel",
+                adrenTitle1: "💉 Adrenaline Theft",
+                adrenSub1: "Choose player to steal from:",
+                adrenTitle2: "🎁 Select Item to Steal",
+                adrenVictimTxt: "Click desired item:",
+                btnCancelAdren: "Cancel",
+                settingsTitle: "Settings",
+                lblVolume: "Volume:",
+                lblLanguage: "Language / زبان:",
+                btnSaveSettings: "Confirm & Return",
+                shotgunLabel: "12-GAUGE SHOTGUN",
+                liveCount: "Live",
+                blankCount: "Blank",
+                btnSelf: "Shoot Self",
+                btnOpponent: "Shoot Opponent",
+                gameOverTitle: "Game Over",
+                gameOverMsg: "The shotgun blast ended your life.",
+                btnRestartMenu: "Main Menu",
+                youLabel: "YOU",
+                botAlpha: "Alpha Bot",
+                botBeta: "Beta Bot",
+                botGamma: "Gamma Bot",
+                roundStarted: (r, name) => `Round ${r} started! Starter: ${name}`,
+                magEmpty: "Magazine empty! Next round...",
+                statusYourTurn: (name) => `Your turn (${name})! Choose action:`,
+                statusBotTurn: (name) => `Turn: ${name}... (Thinking)`,
+                statusHandcuffed: (name) => `${name} was handcuffed and skipped.`,
+                statusSelfShootLive: (shooter, dmg) => `${shooter} shot self! (${dmg} dmg)`,
+                statusShootOther: (shooter, target, dmg) => `${shooter} shot ${target}! (${dmg} dmg)`,
+                statusBlankSelf: (shooter) => `Click... Blank! ${shooter} gets extra turn.`,
+                statusBlankOther: "Click... Blank shell!",
+                statusCig: (name) => `${name} smoked a cig (+1 HP)!`,
+                statusSaw: (name) => `${name} sawed barrel (Double damage)!`,
+                statusMagnifier: (name, shell) => `${name} used magnifier: Shell is ${shell}.`,
+                shellLive: "LIVE",
+                shellBlank: "BLANK",
+                statusBeer: (name, shell) => `${name} drank beer! Ejected ${shell}.`,
+                statusHandcuffsUsed: (player, target) => `${player} cuffed ${target}!`,
+                statusReverse: (player, dir) => `${player} reversed turn direction! (${dir})`,
+                dirClockwise: "Clockwise",
+                dirCounter: "Counter-Clockwise",
+                statusAdrenaline: (player, item, victim) => `${player} stole ${item} from ${victim}!`,
+                timerExpired: "Time expired! Automatically shot yourself."
+            }
+        };
+
+        let currentLang = 'fa';
+        let audioVolume = 0.8;
+        let selectedPlayerCount = 4;
+        let selectedDifficulty = 'normal';
+        let isMultiplayer = false;
+        let peer = null;
+        let conn = null;
+        let isHost = false;
+        let turnDirection = -1; // -1 for counter-clockwise (Left: Bottom -> Right -> Top -> Left), 1 for clockwise
+        let turnTimer = null;
+        let timeLeft = 60;
+
+        // Seat order mapping in counter-clockwise order:
+        // Seat layout around table: Bottom (You, index 0), Right (Seat index 3), Top (Seat index 2), Left (Seat index 1)
+        // Order for counter-clockwise (-1): Bottom -> Right -> Top -> Left -> Bottom
+        const SEAT_KEYS = ['seat-bottom', 'seat-right', 'seat-top', 'seat-left'];
+
+        let gameState = {
+            round: 1,
+            magazine: [],
+            players: [],
+            activePlayerIdx: 0,
+            isSawed: false,
+            isProcessing: false,
+            knownShells: {},
+            adrenVictim: null
+        };
+
+        function t(key, ...args) {
+            const dict = TRANSLATIONS[currentLang] || TRANSLATIONS.fa;
+            const val = dict[key] || TRANSLATIONS.fa[key] || key;
+            return typeof val === 'function' ? val(...args) : val;
+        }
+
+        function applyLanguageUI() {
+            const isFa = currentLang === 'fa';
+            document.body.setAttribute('dir', isFa ? 'rtl' : 'ltr');
+            
+            document.getElementById('menu-badge').innerText = t('menuBadge');
+            document.getElementById('menu-title').innerText = t('menuTitle');
+            document.getElementById('menu-subtitle').innerText = t('menuSub');
+            document.getElementById('player-name-input').placeholder = t('playerNamePlaceholder');
+            document.getElementById('btn-text-sp').innerText = t('btnSp');
+            document.getElementById('btn-text-multi').innerText = t('btnMulti');
+            document.getElementById('btn-text-opt').innerText = t('btnOpt');
+
+            document.getElementById('sp-setup-title').innerText = t('spSetupTitle');
+            document.getElementById('sp-setup-sub').innerText = t('spSetupSub');
+            document.getElementById('lbl-table-players').innerText = t('lblTablePlayers');
+            document.getElementById('btn-count-2').innerHTML = `${t('btnCount2')}<br><span class="text-[10px] text-slate-400">${t('btnCount2Sub')}</span>`;
+            document.getElementById('btn-count-3').innerHTML = `${t('btnCount3')}<br><span class="text-[10px] text-slate-400">${t('btnCount3Sub')}</span>`;
+            document.getElementById('btn-count-4').innerHTML = `${t('btnCount4')}<br><span class="text-[10px] text-rose-200">${t('btnCount4Sub')}</span>`;
+            document.getElementById('lbl-ai-diff').innerText = t('lblAiDiff');
+            document.getElementById('diff-easy').innerText = t('diffEasy');
+            document.getElementById('diff-normal').innerText = t('diffNormal');
+            document.getElementById('diff-hard').innerText = t('diffHard');
+            document.getElementById('diff-impossible').innerText = t('diffImpossible');
+            document.getElementById('btn-back-sp').innerText = t('btnBackSp');
+            document.getElementById('btn-start-sp').innerText = t('btnStartSp');
+
+            document.getElementById('multi-title').innerText = t('multiTitle');
+            document.getElementById('multi-sub').innerText = t('multiSub');
+            document.getElementById('btn-host-room').innerText = t('btnHostRoom');
+            document.getElementById('join-code-input').placeholder = t('joinCodePlaceholder');
+            document.getElementById('btn-join-room').innerText = t('btnJoinRoom');
+            document.getElementById('btn-back-multi').innerText = t('btnBackMulti');
+
+            document.getElementById('target-modal-title').innerText = t('targetModalTitle');
+            document.getElementById('target-modal-sub').innerText = t('targetModalSub');
+            document.getElementById('btn-cancel-target').innerText = t('btnCancelTarget');
+
+            document.getElementById('handcuffs-modal-title').innerText = t('handcuffsModalTitle');
+            document.getElementById('handcuffs-modal-sub').innerText = t('handcuffsModalSub');
+            document.getElementById('btn-cancel-handcuffs').innerText = t('btnCancelHandcuffs');
+
+            document.getElementById('adren-title-1').innerText = t('adrenTitle1');
+            document.getElementById('adren-sub-1').innerText = t('adrenSub1');
+            document.getElementById('adren-title-2').innerText = t('adrenTitle2');
+            document.getElementById('adren-victim-txt').innerText = t('adrenVictimTxt');
+            document.getElementById('btn-cancel-adren').innerText = t('btnCancelAdren');
+
+            document.getElementById('settings-title').innerText = t('settingsTitle');
+            document.getElementById('lbl-volume').innerText = t('lblVolume');
+            document.getElementById('lbl-language').innerText = t('lblLanguage');
+            document.getElementById('btn-save-settings').innerText = t('btnSaveSettings');
+
+            document.getElementById('shotgun-label').innerText = t('shotgunLabel');
+            document.getElementById('btn-self').innerText = t('btnSelf');
+            document.getElementById('btn-opponent').innerText = t('btnOpponent');
+
+            document.getElementById('end-title').innerText = t('gameOverTitle');
+            document.getElementById('end-msg').innerText = t('gameOverMsg');
+            document.getElementById('btn-restart-menu').innerText = t('btnRestartMenu');
+        }
+
+        function showSinglePlayerSetup() {
+            sound.init();
+            isMultiplayer = false;
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('sp-setup-menu').classList.remove('hidden');
+            setPlayerCount(4);
+            setDifficulty('normal');
+        }
+
+        function hideSinglePlayerSetup() {
+            document.getElementById('sp-setup-menu').classList.add('hidden');
+            document.getElementById('main-menu').classList.remove('hidden');
+        }
+
+        function setPlayerCount(count) {
+            selectedPlayerCount = count;
+            [2, 3, 4].forEach(c => {
+                const btn = document.getElementById(`btn-count-${c}`);
+                if (c === count) {
+                    btn.className = "count-btn py-2.5 px-2 bg-rose-700 border-2 border-rose-500 rounded-xl text-xs font-bold transition-all text-center text-white cursor-pointer";
+                } else {
+                    btn.className = "count-btn py-2.5 px-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-xs font-bold transition-all text-center text-slate-300 cursor-pointer";
+                }
+            });
+        }
+
+        function setDifficulty(diff) {
+            selectedDifficulty = diff;
+            ['easy', 'normal', 'hard', 'impossible'].forEach(d => {
+                const btn = document.getElementById(`diff-${d}`);
+                if (d === diff) {
+                    btn.classList.add('border-2', 'scale-105');
+                } else {
+                    btn.classList.remove('border-2', 'scale-105');
+                }
+            });
+        }
+
+        function updateVolume(val) { audioVolume = val / 100; }
+        
+        function showSettings() {
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('settings-menu').classList.remove('hidden');
+        }
+        function hideSettings() {
+            document.getElementById('settings-menu').classList.add('hidden');
+            document.getElementById('main-menu').classList.remove('hidden');
+        }
+
+        function showMultiplayerMenu() {
+            sound.init();
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('multi-menu').classList.remove('hidden');
+        }
+        function hideMultiplayerMenu() {
+            document.getElementById('multi-menu').classList.add('hidden');
+            document.getElementById('main-menu').classList.remove('hidden');
+        }
+
+        function hostMultiplayerGame() {
+            isMultiplayer = true;
+            isHost = true;
+            const statusBox = document.getElementById('multi-status-box');
+            statusBox.classList.remove('hidden');
+            statusBox.innerText = "در حال ایجاد اتاق آنلاین...";
+
+            peer = new Peer();
+            peer.on('open', (id) => {
+                statusBox.innerText = `کد اتاق شما: ${id}\nمنتظر اتصال حریف...`;
+                const myName = document.getElementById('player-name-input').value.trim() || t('defaultPlayerName');
+                gameState.players = [{
+                    id: 0,
+                    seatKey: 'seat-bottom',
+                    name: myName,
+                    isBot: false,
+                    hp: 5,
+                    maxHp: 5,
+                    items: [],
+                    isHandcuffed: false,
+                    isDead: false
+                }];
+            });
+
+            peer.on('connection', (c) => {
+                conn = c;
+                setupConnectionListeners();
+                statusBox.innerText = "حریف متصل شد! شروع بازی...";
+                setTimeout(() => {
+                    document.getElementById('multi-menu').classList.add('hidden');
+                    startMultiplayerHostGame();
+                }, 1500);
+            });
+        }
+
+        function joinMultiplayerGame() {
+            isMultiplayer = true;
+            isHost = false;
+            const code = document.getElementById('join-code-input').value.trim();
+            if (!code) return;
+
+            const statusBox = document.getElementById('multi-status-box');
+            statusBox.classList.remove('hidden');
+            statusBox.innerText = "در حال اتصال به اتاق...";
+
+            peer = new Peer();
+            peer.on('open', () => {
+                conn = peer.connect(code);
+                setupConnectionListeners();
+                statusBox.innerText = "متصل شدید! منتظر شروع میزبان...";
+                setTimeout(() => {
+                    document.getElementById('multi-menu').classList.add('hidden');
+                }, 1500);
+            });
+        }
+
+        function setupConnectionListeners() {
+            conn.on('data', (data) => {
+                if (data.type === 'SYNC_STATE') {
+                    gameState = data.state;
+                    updateUI();
+                } else if (data.type === 'ACTION_TRIGGER' && isHost) {
+                    handleRemoteAction(data.action);
+                }
+            });
+        }
+
+        function broadcastState() {
+            if (isHost && conn && conn.open) {
+                conn.send({ type: 'SYNC_STATE', state: gameState });
+            }
+        }
+
+        function startMultiplayerHostGame() {
+            gameState.players.push({
+                id: 1,
+                seatKey: 'seat-top',
+                name: "بازیکن مهمان",
+                isBot: false,
+                hp: 5,
+                maxHp: 5,
+                items: [],
+                isHandcuffed: false,
+                isDead: false
+            });
+            setupSeatsUI();
+            startRound();
+        }
+
+        function handleRemoteAction(action) {
+            if (action.type === 'shoot') {
+                const shooter = gameState.players.find(p => p.id === action.shooterId);
+                const target = gameState.players.find(p => p.id === action.targetId);
+                executeShot(shooter, target);
+            }
+            broadcastState();
+        }
+
+        function startSinglePlayerGame() {
+            document.getElementById('sp-setup-menu').classList.add('hidden');
+            document.getElementById('game-over-modal').classList.add('hidden');
+
+            const humanName = document.getElementById('player-name-input').value.trim() || t('defaultPlayerName');
+
+            gameState.players = [];
+            // Index 0: Human Player (Bottom)
+            gameState.players.push({
+                id: 0,
+                seatKey: 'seat-bottom',
+                name: humanName,
+                isBot: false,
+                hp: 5,
+                maxHp: 5,
+                items: [],
+                isHandcuffed: false,
+                isDead: false
+            });
+
+            // Bot 1 (Right, id: 3 in seat array or index 1 if 2 players)
+            if (selectedPlayerCount >= 2) {
+                gameState.players.push({
+                    id: 3,
+                    seatKey: 'seat-right',
+                    name: t('botAlpha'),
+                    isBot: true,
+                    hp: 5,
+                    maxHp: 5,
+                    items: [],
+                    isHandcuffed: false,
+                    isDead: false
+                });
+            }
+            if (selectedPlayerCount >= 3) {
+                gameState.players.push({
+                    id: 2,
+                    seatKey: 'seat-top',
+                    name: t('botBeta'),
+                    isBot: true,
+                    hp: 5,
+                    maxHp: 5,
+                    items: [],
+                    isHandcuffed: false,
+                    isDead: false
+                });
+            }
+            if (selectedPlayerCount >= 4) {
+                gameState.players.push({
+                    id: 1,
+                    seatKey: 'seat-left',
+                    name: t('botGamma'),
+                    isBot: true,
+                    hp: 5,
+                    maxHp: 5,
+                    items: [],
+                    isHandcuffed: false,
+                    isDead: false
+                });
+            }
+
+            gameState.round = 1;
+            
+            setupSeatsUI();
+            startRound();
+        }
+
+        function setupSeatsUI() {
+            const activeSeatKeys = gameState.players.map(p => p.seatKey);
+            ['seat-bottom', 'seat-right', 'seat-top', 'seat-left'].forEach(key => {
+                const el = document.getElementById(key);
+                if (activeSeatKeys.includes(key)) {
+                    el.style.visibility = 'visible';
+                    el.classList.remove('dead');
+                } else {
+                    el.style.visibility = 'hidden';
+                }
+            });
+        }
+
+        function startRound() {
+            if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+            gameState.isProcessing = false;
+            gameState.isSawed = false;
+            gameState.knownShells = {};
+            turnDirection = -1; // Default counter-clockwise direction
+            document.getElementById('shotgun-text').classList.remove('sawed-off');
+
+            gameState.magazine = generateMagazine();
+
+            const itemsCount = (gameState.round === 1) ? 2 : 3;
+            gameState.players.forEach(p => {
+                if (!p.isDead) addItems(p, itemsCount);
+            });
+
+            // Determine starting player based on difficulty
+            if (selectedDifficulty === 'easy' || selectedDifficulty === 'normal') {
+                // Always start with Human Player (id 0)
+                const humanIdx = gameState.players.findIndex(p => p.id === 0);
+                gameState.activePlayerIdx = humanIdx !== -1 ? humanIdx : 0;
+            } else {
+                // Hard & Impossible: Randomly pick one alive player
+                const aliveIndices = [];
+                gameState.players.forEach((p, idx) => { if (!p.isDead) aliveIndices.push(idx); });
+                gameState.activePlayerIdx = aliveIndices[Math.floor(Math.random() * aliveIndices.length)];
+            }
+
+            updateUI();
+            const starterName = gameState.players[gameState.activePlayerIdx].name;
+            setStatus(t('roundStarted', gameState.round, starterName));
+
+            setTimeout(() => {
+                processNextTurn();
+            }, 2000);
+        }
+
+        function generateMagazine() {
+            const total = Math.floor(Math.random() * 7) + 2;
+            let lives = Math.floor(Math.random() * (total - 1)) + 1;
+            let blanks = total - lives;
+            if (lives < 1) lives = 1;
+            if (blanks < 1) blanks = 1;
+
+            let mag = [];
+            for (let i = 0; i < lives; i++) mag.push('live');
+            for (let i = 0; i < blanks; i++) mag.push('blank');
+            return mag.sort(() => Math.random() - 0.5);
+        }
+
+        function addItems(player, count) {
+            const keys = Object.keys(ITEMS_DEF);
+            for (let i = 0; i < count; i++) {
+                if (player.items.length < 8) {
+                    const randKey = keys[Math.floor(Math.random() * keys.length)];
+                    player.items.push(randKey);
+                }
+            }
+        }
+
+        function processNextTurn() {
+            if (checkGameOver()) return;
+
+            if (gameState.magazine.length === 0) {
+                setStatus(t('magEmpty'));
+                gameState.round++;
+                setTimeout(startRound, 2500);
+                return;
+            }
+
+            let activePlayer = gameState.players[gameState.activePlayerIdx];
+
+            if (activePlayer.isDead) {
+                advanceTurn();
+                processNextTurn();
+                return;
+            }
+
+            if (activePlayer.isHandcuffed) {
+                activePlayer.isHandcuffed = false;
+                setStatus(t('statusHandcuffed', activePlayer.name));
+                updateUI();
+                advanceTurn();
+                setTimeout(processNextTurn, 2000);
+                return;
+            }
+
+            updateUI();
+
+            if (!activePlayer.isBot) {
+                setStatus(t('statusYourTurn', activePlayer.name));
+                document.getElementById('turn-timer-box').classList.remove('hidden');
+                toggleControls(true);
+                gameState.isProcessing = false;
+                
+                if (turnTimer) clearInterval(turnTimer);
+                timeLeft = 60;
+                document.getElementById('turn-timer-val').innerText = `${timeLeft} ثانیه`;
+                
+                turnTimer = setInterval(() => {
+                    timeLeft--;
+                    document.getElementById('turn-timer-val').innerText = `${timeLeft} ثانیه`;
+                    if (timeLeft <= 0) {
+                        clearInterval(turnTimer);
+                        turnTimer = null;
+                        document.getElementById('turn-timer-box').classList.add('hidden');
+                        if (!gameState.isProcessing) {
+                            setStatus(t('timerExpired'));
+                            gameState.isProcessing = true;
+                            toggleControls(false);
+                            executeShot(activePlayer, activePlayer);
+                        }
+                    }
+                }, 1000);
+
+            } else {
+                if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+                document.getElementById('turn-timer-box').classList.add('hidden');
+                toggleControls(false);
+                setStatus(t('statusBotTurn', activePlayer.name));
+                gameState.isProcessing = true;
+                setTimeout(() => runBotAI(activePlayer), 2000);
+            }
+        }
+
+        function advanceTurn() {
+            if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+            document.getElementById('turn-timer-box').classList.add('hidden');
+
+            // Find order of living players following physical table layout
+            const layoutOrder = ['seat-bottom', 'seat-right', 'seat-top', 'seat-left'];
+            let activeSeatKey = gameState.players[gameState.activePlayerIdx].seatKey;
+            let currentLayoutIdx = layoutOrder.indexOf(activeSeatKey);
+
+            // Find next available living player in layout order based on turnDirection (-1 counter-clockwise, 1 clockwise)
+            let nextLayoutIdx = currentLayoutIdx;
+            let nextPlayer = null;
+            let nextPlayerIdx = -1;
+
+            for (let step = 1; step <= 4; step++) {
+                nextLayoutIdx = (currentLayoutIdx + (turnDirection * step) + 400) % 4;
+                let candidateSeatKey = layoutOrder[nextLayoutIdx];
+                let candidatePlayer = gameState.players.find(p => p.seatKey === candidateSeatKey && !p.isDead);
+                if (candidatePlayer) {
+                    nextPlayer = candidatePlayer;
+                    nextPlayerIdx = gameState.players.indexOf(candidatePlayer);
+                    break;
+                }
+            }
+
+            if (nextPlayerIdx !== -1) {
+                gameState.activePlayerIdx = nextPlayerIdx;
+            }
+        }
+
+        function playerAction(type) {
+            if (gameState.isProcessing) return;
+
+            let humanPlayer = gameState.players[0];
+            if (gameState.players[gameState.activePlayerIdx].id !== humanPlayer.id) return;
+
+            if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+            document.getElementById('turn-timer-box').classList.add('hidden');
+
+            if (type === 'self') {
+                gameState.isProcessing = true;
+                toggleControls(false);
+                executeShot(humanPlayer, humanPlayer);
+            } else if (type === 'opponent') {
+                const livingOpponents = gameState.players.filter(p => !p.isDead && p.id !== humanPlayer.id);
+                if (livingOpponents.length === 1) {
+                    gameState.isProcessing = true;
+                    toggleControls(false);
+                    executeShot(humanPlayer, livingOpponents[0]);
+                } else {
+                    openTargetModal(livingOpponents);
+                }
+            }
+        }
+
+        function openTargetModal(opponents) {
+            const container = document.getElementById('target-buttons-container');
+            container.innerHTML = '';
+            opponents.forEach(opp => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full py-2.5 px-4 bg-slate-900 hover:bg-rose-950 border border-slate-700 hover:border-rose-500 rounded-xl text-xs font-bold text-slate-200 hover:text-white flex justify-between items-center transition-all cursor-pointer';
+                btn.innerHTML = `<span>🔫 ${opp.name}</span> <span class="text-emerald-400 font-mono">${opp.hp}/${opp.maxHp} HP</span>`;
+                btn.onclick = () => {
+                    closeTargetModal();
+                    gameState.isProcessing = true;
+                    toggleControls(false);
+                    executeShot(gameState.players[0], opp);
+                };
+                container.appendChild(btn);
+            });
+            document.getElementById('target-modal').classList.remove('hidden');
+        }
+
+        function closeTargetModal() {
+            document.getElementById('target-modal').classList.add('hidden');
+        }
+
+        function executeShot(shooter, target) {
+            const currentShell = gameState.magazine.shift();
+            const damage = gameState.isSawed ? 2 : 1;
+            gameState.isSawed = false;
+            delete gameState.knownShells[shooter.id];
+            document.getElementById('shotgun-text').classList.remove('sawed-off');
+
+            if (currentShell === 'live') {
+                sound.playShotgunBlast();
+                triggerShake();
+
+                target.hp = Math.max(0, target.hp - damage);
+                if (target.hp <= 0) target.isDead = true;
+
+                if (shooter.id === target.id) {
+                    setStatus(t('statusSelfShootLive', shooter.name, damage));
+                } else {
+                    setStatus(t('statusShootOther', shooter.name, target.name, damage));
+                }
+
+                updateUI();
+                if (checkGameOver()) return;
+
+                setTimeout(() => {
+                    advanceTurn();
+                    processNextTurn();
+                }, 2500);
+
+            } else {
+                sound.playBlankClick();
+                setStatus(t('statusBlankOther'));
+                updateUI();
+
+                setTimeout(() => {
+                    if (shooter.id === target.id) {
+                        setStatus(t('statusBlankSelf', shooter.name));
+                        setTimeout(processNextTurn, 2000);
+                    } else {
+                        advanceTurn();
+                        processNextTurn();
+                    }
+                }, 2000);
+            }
+        }
+
+        function runBotAI(bot) {
+            if (bot.isDead) {
+                advanceTurn();
+                processNextTurn();
+                return;
+            }
+
+            if (bot.items.length > 0) {
+                if (bot.items.includes('cig') && bot.hp < bot.maxHp) {
+                    useItem('cig', bot);
+                    setTimeout(() => runBotAI(bot), 1500);
+                    return;
+                }
+                if (bot.items.includes('magnifier') && !gameState.knownShells[bot.id] && selectedDifficulty !== 'easy') {
+                    useItem('magnifier', bot);
+                    setTimeout(() => runBotAI(bot), 1500);
+                    return;
+                }
+                if (bot.items.includes('saw') && !gameState.isSawed) {
+                    useItem('saw', bot);
+                    setTimeout(() => runBotAI(bot), 1500);
+                    return;
+                }
+            }
+
+            const livingOpponents = gameState.players.filter(p => !p.isDead && p.id !== bot.id);
+            if (livingOpponents.length === 0) return;
+
+            let chosenTarget = Math.random() < 0.6 ? livingOpponents[Math.floor(Math.random() * livingOpponents.length)] : bot;
+            executeShot(bot, chosenTarget);
+        }
+
+        function useItem(itemKey, player, target = null) {
+            const idx = player.items.indexOf(itemKey);
+            if (idx === -1) return;
+            player.items.splice(idx, 1);
+            sound.playItemUse();
+
+            if (itemKey === 'cig') {
+                player.hp = Math.min(player.maxHp, player.hp + 1);
+                setStatus(t('statusCig', player.name));
+            } else if (itemKey === 'saw') {
+                gameState.isSawed = true;
+                document.getElementById('shotgun-text').classList.add('sawed-off');
+                setStatus(t('statusSaw', player.name));
+            } else if (itemKey === 'magnifier') {
+                const current = gameState.magazine[0];
+                gameState.knownShells[player.id] = current;
+                setStatus(t('statusMagnifier', player.name, current === 'live' ? t('shellLive') : t('shellBlank')));
+            } else if (itemKey === 'beer') {
+                const discarded = gameState.magazine.shift();
+                setStatus(t('statusBeer', player.name, discarded === 'live' ? t('shellLive') : t('shellBlank')));
+            } else if (itemKey === 'handcuffs' && target) {
+                target.isHandcuffed = true;
+                setStatus(t('statusHandcuffsUsed', player.name, target.name));
+            } else if (itemKey === 'reverse') {
+                turnDirection *= -1; // Flip turn rotation direction between -1 and 1
+                setStatus(t('statusReverse', player.name, turnDirection === -1 ? t('dirCounter') : t('dirClockwise')));
+            }
+            updateUI();
+        }
+
+        function triggerShake() {
+            const container = document.getElementById('game-container');
+            container.classList.add('shake', 'flash-red');
+            setTimeout(() => { container.classList.remove('shake', 'flash-red'); }, 400);
+        }
+
+        function setStatus(text) {
+            document.getElementById('status-text').innerText = text;
+        }
+
+        function toggleControls(enable) {
+            document.getElementById('btn-self').disabled = !enable;
+            document.getElementById('btn-opponent').disabled = !enable;
+        }
+
+        function updateUI() {
+            const lives = gameState.magazine.filter(s => s === 'live').length;
+            const blanks = gameState.magazine.filter(s => s === 'blank').length;
+            document.getElementById('live-count-txt').innerText = `${t('liveCount')}: ${lives}`;
+            document.getElementById('blank-count-txt').innerText = `${t('blankCount')}: ${blanks}`;
+            
+            const dirTxtEl = document.getElementById('turn-dir-txt');
+            const dirIconEl = document.getElementById('turn-dir-icon');
+            if (turnDirection === -1) {
+                dirTxtEl.innerText = t('dirCounter');
+                dirIconEl.className = "fa-solid fa-arrow-rotate-left";
+            } else {
+                dirTxtEl.innerText = t('dirClockwise');
+                dirIconEl.className = "fa-solid fa-arrow-rotate-right";
+            }
+
+            gameState.players.forEach((p, idx) => {
+                const seatEl = document.getElementById(p.seatKey);
+                if (!seatEl) return;
+
+                if (p.isDead) seatEl.classList.add('dead');
+                else seatEl.classList.remove('dead');
+
+                if (idx === gameState.activePlayerIdx && !p.isDead) seatEl.classList.add('active-turn');
+                else seatEl.classList.remove('active-turn');
+
+                document.getElementById(`${p.seatKey}-name`).innerText = p.name;
+                document.getElementById(`${p.seatKey}-hp-txt`).innerText = `${p.hp}/${p.maxHp}`;
+
+                const hpContainer = document.getElementById(`${p.seatKey}-hp`);
+                hpContainer.innerHTML = '';
+                for (let i = 0; i < p.maxHp; i++) {
+                    const node = document.createElement('div');
+                    node.className = `hp-node ${p.isBot ? 'bot-node' : ''} ${i >= p.hp ? 'lost' : ''}`;
+                    hpContainer.appendChild(node);
+                }
+
+                const itemsContainer = document.getElementById(`${p.seatKey}-items`);
+                itemsContainer.innerHTML = '';
+                p.items.forEach((itemKey) => {
+                    const slot = document.createElement('div');
+                    slot.className = 'item-slot';
+                    slot.innerHTML = ITEMS_DEF[itemKey].icon;
+                    slot.title = ITEMS_DEF[itemKey].nameFa;
+                    
+                    if (!p.isBot && idx === gameState.activePlayerIdx && !gameState.isProcessing) {
+                        slot.onclick = () => handleItemClick(itemKey, p);
+                    } else {
+                        slot.classList.add('disabled');
+                    }
+                    itemsContainer.appendChild(slot);
+                });
+            });
+
+            if (isMultiplayer && isHost) broadcastState();
+        }
+
+        function handleItemClick(itemKey, player) {
+            if (itemKey === 'handcuffs') {
+                const validTargets = gameState.players.filter(p => !p.isDead && p.id !== player.id && !p.isHandcuffed);
+                if (validTargets.length === 0) return;
+                openHandcuffsModal(validTargets, player);
+            } else if (itemKey === 'adrenaline') {
+                const oppsWithItems = gameState.players.filter(p => !p.isDead && p.id !== player.id && p.items.length > 0);
+                if (oppsWithItems.length === 0) return;
+                openAdrenalineModal(oppsWithItems, player);
+            } else {
+                useItem(itemKey, player);
+            }
+        }
+
+        function openHandcuffsModal(targets, player) {
+            const container = document.getElementById('handcuffs-buttons-container');
+            container.innerHTML = '';
+            targets.forEach(t => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full py-2.5 px-4 bg-slate-900 hover:bg-amber-950 border border-slate-700 hover:border-amber-500 rounded-xl text-xs font-bold text-slate-200 transition-all cursor-pointer';
+                btn.innerHTML = `🔗 ${t.name}`;
+                btn.onclick = () => {
+                    document.getElementById('handcuffs-modal').classList.add('hidden');
+                    useItem('handcuffs', player, t);
+                };
+                container.appendChild(btn);
+            });
+            document.getElementById('handcuffs-modal').classList.remove('hidden');
+        }
+
+        function closeHandcuffsModal() {
+            document.getElementById('handcuffs-modal').classList.add('hidden');
+        }
+
+        function openAdrenalineModal(opponents, player) {
+            document.getElementById('adren-step-1').classList.remove('hidden');
+            document.getElementById('adren-step-2').classList.add('hidden');
+            const container = document.getElementById('adren-opponents-container');
+            container.innerHTML = '';
+
+            opponents.forEach(opp => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full py-2.5 px-4 bg-slate-900 hover:bg-cyan-950 border border-slate-700 hover:border-cyan-500 rounded-xl text-xs font-bold text-slate-200 flex justify-between items-center transition-all cursor-pointer';
+                btn.innerHTML = `<span>👤 ${opp.name}</span> <span class="text-cyan-400">${opp.items.length} آیتم</span>`;
+                btn.onclick = () => {
+                    showAdrenalineStep2(player, opp);
+                };
+                container.appendChild(btn);
+            });
+            document.getElementById('adrenaline-modal').classList.remove('hidden');
+        }
+
+        function showAdrenalineStep2(player, victim) {
+            document.getElementById('adren-step-1').classList.add('hidden');
+            document.getElementById('adren-step-2').classList.remove('hidden');
+            const container = document.getElementById('adren-items-container');
+            container.innerHTML = '';
+
+            victim.items.forEach((itemKey, idx) => {
+                const slot = document.createElement('div');
+                slot.className = 'item-slot';
+                slot.innerHTML = ITEMS_DEF[itemKey].icon;
+                slot.onclick = () => {
+                    victim.items.splice(idx, 1);
+                    player.items.push(itemKey);
+                    const adrenIdx = player.items.indexOf('adrenaline');
+                    if (adrenIdx > -1) player.items.splice(adrenIdx, 1);
+
+                    sound.playStealSound();
+                    setStatus(t('statusAdrenaline', player.name, ITEMS_DEF[itemKey].nameFa, victim.name));
+                    closeAdrenalineModal();
+                    updateUI();
+                };
+                container.appendChild(slot);
+            });
+        }
+
+        function closeAdrenalineModal() {
+            document.getElementById('adrenaline-modal').classList.add('hidden');
+        }
+
+        function checkGameOver() {
+            const living = gameState.players.filter(p => !p.isDead);
+            if (living.length <= 1) {
+                showGameOverModal(living.length === 1 ? living[0] : null);
+                return true;
+            }
+            return false;
+        }
+
+        function showGameOverModal(winner) {
+            if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+            const modal = document.getElementById('game-over-modal');
+            const titleEl = document.getElementById('end-title');
+            const msgEl = document.getElementById('end-msg');
+            const iconEl = document.getElementById('end-icon');
+
+            if (winner && winner.id === 0) {
+                iconEl.innerText = '🏆';
+                titleEl.innerText = 'پیروزی بزرگ!';
+                titleEl.className = 'text-3xl font-black text-emerald-400 mb-2';
+                msgEl.innerText = 'تبریک! شما زنده از میز مرگ بیرون آمدید.';
+            } else if (winner) {
+                iconEl.innerText = '💀';
+                titleEl.innerText = 'شکست خوردید!';
+                titleEl.className = 'text-3xl font-black text-rose-600 mb-2';
+                msgEl.innerText = `${winner.name} آخرین بازمانده بود.`;
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function resetGameToMenu() {
+            if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+            document.getElementById('game-over-modal').classList.add('hidden');
+            document.getElementById('main-menu').classList.remove('hidden');
+            if (peer) { peer.destroy(); peer = null; }
+        }
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            applyLanguageUI();
+        }
+
+        window.onload = () => {
+            applyLanguageUI();
+        };
+    </script>
+</body>
+</html>
+
             color: #000;
             border-color: var(--accent-red);
             box-shadow: 0 0 15px var(--accent-red);
