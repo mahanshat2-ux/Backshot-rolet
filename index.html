@@ -243,7 +243,7 @@
             </div>
         </div>
 
-        <!-- ================= MULTIPLAYER OVERLAY ================= -->
+        <!-- ================= MULTIPLAYER MENU OVERLAY ================= -->
         <div id="multi-menu" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/98 p-6 backdrop-blur-md hidden">
             <div class="glass-panel p-6 rounded-3xl w-full max-w-sm border border-cyan-500/50 text-center space-y-4">
                 <h2 id="multi-title" class="text-2xl font-black text-cyan-400">لابی آنلاین (PeerJS)</h2>
@@ -254,11 +254,16 @@
                         ساخت اتاق میزبان
                     </button>
                     <div class="flex gap-2">
-                        <input type="text" id="join-code-input" placeholder="کد اتاق میزبان" class="w-2/3 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-center text-white outline-none focus:border-cyan-500 font-mono">
+                        <input type="text" id="join-code-input" placeholder="کد اتاق میزبان" class="w-2/3 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-center text-white outline-none focus:border-cyan-500 font-mono text-xs">
                         <button id="btn-join-room" onclick="joinMultiplayerGame()" class="w-1/3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs cursor-pointer">
                             پیوستن
                         </button>
                     </div>
+                </div>
+
+                <!-- Error Display Box -->
+                <div id="multi-error-box" class="p-2.5 bg-rose-950/80 border border-rose-600/60 rounded-xl text-xs text-rose-300 font-bold hidden">
+                    <!-- خطای داینامیک -->
                 </div>
 
                 <div id="multi-status-box" class="p-2 bg-black/60 rounded-xl text-xs text-amber-400 font-mono hidden">
@@ -268,6 +273,45 @@
                 <button id="btn-back-multi" onclick="hideMultiplayerMenu()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold rounded-xl cursor-pointer">
                     بازگشت به منو
                 </button>
+            </div>
+        </div>
+
+        <!-- ================= ONLINE ROOM WAITING LOBBY (4-PLAYER) ================= -->
+        <div id="room-lobby-view" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/98 p-4 md:p-6 backdrop-blur-md hidden">
+            <div class="glass-panel p-6 rounded-3xl w-full max-w-lg border border-cyan-500/50 space-y-5 shadow-2xl">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-black text-cyan-400">لابی انتظار اتاق آنلاین</h2>
+                        <p class="text-xs text-slate-400">حداکثر ۴ بازیکن - نیاز به آمادگی همه اعضا</p>
+                    </div>
+                    <div class="bg-cyan-950/80 border border-cyan-600 px-3 py-1.5 rounded-xl text-center">
+                        <span class="text-[10px] text-cyan-300 block font-bold">کد اتاق شما:</span>
+                        <span id="lobby-room-code" class="text-sm font-mono font-extrabold text-white cursor-pointer select-all" title="کپی کردن کد" onclick="navigator.clipboard.writeText(this.innerText)">---</span>
+                    </div>
+                </div>
+
+                <!-- Player List (Max 4) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">لیست بازیکنان حاضر (حداکثر ۴ نفر):</label>
+                    <div id="lobby-players-container" class="space-y-2 bg-black/40 p-3 rounded-2xl border border-slate-800/80 min-h-[140px]">
+                        <!-- پرسنل اتاق پویا -->
+                    </div>
+                </div>
+
+                <!-- Lobby Actions & Error -->
+                <div id="lobby-error-msg" class="p-2 bg-rose-950/80 border border-rose-600/60 rounded-xl text-xs text-rose-300 font-bold hidden text-center"></div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button id="btn-lobby-ready" onclick="toggleReadyStatus()" class="py-3 bg-amber-600 hover:bg-amber-500 text-white font-extrabold rounded-xl text-xs shadow-lg transition-all cursor-pointer">
+                        وضعیت: آماده (Ready) ⏳
+                    </button>
+                    <button id="btn-lobby-start" onclick="hostStartOnlineGame()" class="py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold rounded-xl text-xs shadow-lg transition-all cursor-pointer hidden">
+                        شروع بازی 🚀 (فقط میزبان)
+                    </button>
+                    <button id="btn-lobby-exit" onclick="exitRoomLobby()" class="py-3 bg-rose-950 hover:bg-rose-900 border border-rose-700 text-rose-200 font-bold rounded-xl text-xs transition-all cursor-pointer">
+                        خروج از اتاق
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -763,16 +807,16 @@
         let selectedDifficulty = 'normal';
         let isMultiplayer = false;
         let peer = null;
-        let conn = null;
         let isHost = false;
-        let turnDirection = -1; // -1 for counter-clockwise (Left: Bottom -> Right -> Top -> Left), 1 for clockwise
+        let hostRoomId = null;
+        let clientConnections = []; // For host to track all connected peers (max 3 clients + host = 4)
+        let hostPeerConn = null; // For client to connect to host
+        let myClientId = null;
+        let myClientName = "";
+        let onlinePlayersList = []; // Array of { id, name, isReady, isHost }
+        let turnDirection = -1; // -1 for counter-clockwise, 1 for clockwise
         let turnTimer = null;
         let timeLeft = 60;
-
-        // Seat order mapping in counter-clockwise order:
-        // Seat layout around table: Bottom (You, index 0), Right (Seat index 3), Top (Seat index 2), Left (Seat index 1)
-        // Order for counter-clockwise (-1): Bottom -> Right -> Top -> Left -> Bottom
-        const SEAT_KEYS = ['seat-bottom', 'seat-right', 'seat-top', 'seat-left'];
 
         let gameState = {
             round: 1,
@@ -905,108 +949,294 @@
             sound.init();
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('multi-menu').classList.remove('hidden');
+            document.getElementById('multi-error-box').classList.add('hidden');
+            document.getElementById('multi-status-box').classList.add('hidden');
         }
         function hideMultiplayerMenu() {
             document.getElementById('multi-menu').classList.add('hidden');
             document.getElementById('main-menu').classList.remove('hidden');
+            if (peer) { peer.destroy(); peer = null; }
         }
 
+        function showMultiError(msg) {
+            const errBox = document.getElementById('multi-error-box');
+            errBox.innerText = `خطا: ${msg}`;
+            errBox.classList.remove('hidden');
+        }
+
+        function showLobbyError(msg) {
+            const errBox = document.getElementById('lobby-error-msg');
+            errBox.innerText = `خطا: ${msg}`;
+            errBox.classList.remove('hidden');
+            setTimeout(() => errBox.classList.add('hidden'), 4000);
+        }
+
+        // ================= ADVANCED 4-PLAYER ONLINE LOBBY SYSTEM =================
         function hostMultiplayerGame() {
             isMultiplayer = true;
             isHost = true;
+            myClientName = document.getElementById('player-name-input').value.trim() || t('defaultPlayerName');
+            
             const statusBox = document.getElementById('multi-status-box');
             statusBox.classList.remove('hidden');
-            statusBox.innerText = "در حال ایجاد اتاق آنلاین...";
+            statusBox.innerText = "در حال ایجاد اتاق میزبان در شبکه...";
 
+            if (peer) { peer.destroy(); }
             peer = new Peer();
-            peer.on('open', (id) => {
-                statusBox.innerText = `کد اتاق شما: ${id}\nمنتظر اتصال حریف...`;
-                const myName = document.getElementById('player-name-input').value.trim() || t('defaultPlayerName');
-                gameState.players = [{
-                    id: 0,
-                    seatKey: 'seat-bottom',
-                    name: myName,
-                    isBot: false,
-                    hp: 5,
-                    maxHp: 5,
-                    items: [],
-                    isHandcuffed: false,
-                    isDead: false
-                }];
-            });
 
-            peer.on('connection', (c) => {
-                conn = c;
-                setupConnectionListeners();
-                statusBox.innerText = "حریف متصل شد! شروع بازی...";
+            peer.on('open', (id) => {
+                hostRoomId = id;
+                clientConnections = [];
+                onlinePlayersList = [
+                    { id: id, name: myClientName, isReady: true, isHost: true }
+                ];
+                myClientId = id;
+
+                statusBox.innerText = "اتاق با موفقیت ساخته شد!";
                 setTimeout(() => {
                     document.getElementById('multi-menu').classList.add('hidden');
-                    startMultiplayerHostGame();
-                }, 1500);
+                    openRoomLobbyView();
+                }, 800);
+            });
+
+            peer.on('error', (err) => {
+                showMultiError(`خطای شبکه PeerJS: ${err.type}`);
+            });
+
+            peer.on('connection', (conn) => {
+                if (onlinePlayersList.length >= 4) {
+                    conn.on('open', () => {
+                        conn.send({ type: 'ROOM_FULL_ERROR', message: 'اتاق ۴ نفره پر است!' });
+                        setTimeout(() => conn.close(), 500);
+                    });
+                    return;
+                }
+
+                conn.on('open', () => {
+                    // Send current room state
+                    conn.send({ type: 'WELCOME', players: onlinePlayersList });
+                });
+
+                conn.on('data', (data) => {
+                    if (data.type === 'JOIN_REQUEST') {
+                        if (onlinePlayersList.length >= 4) {
+                            conn.send({ type: 'ROOM_FULL_ERROR', message: 'اتاق ۴ نفره پر است!' });
+                            return;
+                        }
+                        const newPlayer = { id: conn.peer, name: data.name, isReady: false, isHost: false, conn: conn };
+                        onlinePlayersList.push(newPlayer);
+                        clientConnections.push({ peerId: conn.peer, conn: conn });
+                        broadcastLobbyState();
+                        updateLobbyUI();
+                    } else if (data.type === 'TOGGLE_READY') {
+                        const p = onlinePlayersList.find(x => x.id === conn.peer);
+                        if (p) {
+                            p.isReady = !p.isReady;
+                            broadcastLobbyState();
+                            updateLobbyUI();
+                        }
+                    } else if (data.type === 'CLIENT_DISCONNECT' || data.type === 'LEAVE_ROOM') {
+                        removeClientFromLobby(conn.peer);
+                    }
+                });
+
+                conn.on('close', () => {
+                    removeClientFromLobby(conn.peer);
+                });
             });
         }
 
         function joinMultiplayerGame() {
             isMultiplayer = true;
             isHost = false;
+            myClientName = document.getElementById('player-name-input').value.trim() || t('defaultPlayerName');
             const code = document.getElementById('join-code-input').value.trim();
-            if (!code) return;
+            
+            if (!code) {
+                showMultiError("لطفا کد اتاق میزبان را وارد کنید.");
+                return;
+            }
 
             const statusBox = document.getElementById('multi-status-box');
             statusBox.classList.remove('hidden');
-            statusBox.innerText = "در حال اتصال به اتاق...";
+            statusBox.innerText = "در حال اتصال به میزبان...";
 
+            if (peer) { peer.destroy(); }
             peer = new Peer();
-            peer.on('open', () => {
-                conn = peer.connect(code);
-                setupConnectionListeners();
-                statusBox.innerText = "متصل شدید! منتظر شروع میزبان...";
+
+            peer.on('open', (id) => {
+                myClientId = id;
+                hostPeerConn = peer.connect(code);
+
+                hostPeerConn.on('open', () => {
+                    hostPeerConn.send({ type: 'JOIN_REQUEST', name: myClientName });
+                });
+
+                hostPeerConn.on('data', (data) => {
+                    if (data.type === 'ROOM_FULL_ERROR') {
+                        showMultiError(data.message);
+                        hostPeerConn.close();
+                    } else if (data.type === 'LOBBY_UPDATE') {
+                        onlinePlayersList = data.players;
+                        updateLobbyUI();
+                    } else if (data.type === 'START_GAME') {
+                        document.getElementById('room-lobby-view').classList.add('hidden');
+                        startOnlineMatch(data.gameState);
+                    } else if (data.type === 'SYNC_STATE') {
+                        gameState = data.state;
+                        updateUI();
+                    } else if (data.type === 'ACTION_RESPONSE') {
+                        gameState = data.state;
+                        updateUI();
+                    }
+                });
+
+                hostPeerConn.on('error', (err) => {
+                    showMultiError(`خطا در اتصال به میزبان: ${err}`);
+                });
+
+                hostPeerConn.on('close', () => {
+                    showMultiError("ارتباط با میزبان قطع شد.");
+                    exitRoomLobby();
+                });
+
                 setTimeout(() => {
                     document.getElementById('multi-menu').classList.add('hidden');
-                }, 1500);
+                    openRoomLobbyView();
+                }, 1000);
+            });
+
+            peer.on('error', (err) => {
+                showMultiError(`خطای شبکه: ${err.type}`);
             });
         }
 
-        function setupConnectionListeners() {
-            conn.on('data', (data) => {
-                if (data.type === 'SYNC_STATE') {
-                    gameState = data.state;
-                    updateUI();
-                } else if (data.type === 'ACTION_TRIGGER' && isHost) {
-                    handleRemoteAction(data.action);
+        function openRoomLobbyView() {
+            document.getElementById('room-lobby-view').classList.remove('hidden');
+            document.getElementById('lobby-room-code').innerText = isHost ? hostRoomId : document.getElementById('join-code-input').value.trim();
+            
+            const startBtn = document.getElementById('btn-lobby-start');
+            const exitBtn = document.getElementById('btn-lobby-exit');
+            const readyBtn = document.getElementById('btn-lobby-ready');
+
+            if (isHost) {
+                startBtn.classList.remove('hidden');
+                exitBtn.innerText = "حذف اتاق";
+                readyBtn.classList.add('hidden'); // Host is always ready leader
+            } else {
+                startBtn.classList.add('hidden');
+                exitBtn.innerText = "خروج از اتاق";
+                readyBtn.classList.remove('hidden');
+            }
+            updateLobbyUI();
+        }
+
+        function updateLobbyUI() {
+            const container = document.getElementById('lobby-players-container');
+            container.innerHTML = '';
+
+            onlinePlayersList.forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between items-center bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 text-xs';
+                
+                const badgeHost = p.isHost ? '<span class="px-2 py-0.5 bg-rose-950 text-rose-400 font-bold rounded text-[10px] mr-2">میزبان</span>' : '';
+                const statusBadge = p.isReady || p.isHost ? '<span class="text-emerald-400 font-bold">آماده (Ready)</span>' : '<span class="text-amber-400 font-bold">منتظر...</span>';
+                
+                row.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 bg-slate-800 rounded-full flex items-center justify-center font-bold text-slate-300">${idx + 1}</span>
+                        <span class="font-extrabold text-white">${p.name}</span>
+                        ${badgeHost}
+                    </div>
+                    <div>${statusBadge}</div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function toggleReadyStatus() {
+            if (isHost) return;
+            if (hostPeerConn && hostPeerConn.open) {
+                hostPeerConn.send({ type: 'TOGGLE_READY' });
+            }
+        }
+
+        function broadcastLobbyState() {
+            if (!isHost) return;
+            clientConnections.forEach(c => {
+                if (c.conn && c.conn.open) {
+                    c.conn.send({ type: 'LOBBY_UPDATE', players: onlinePlayersList });
                 }
             });
         }
 
-        function broadcastState() {
-            if (isHost && conn && conn.open) {
-                conn.send({ type: 'SYNC_STATE', state: gameState });
-            }
+        function removeClientFromLobby(peerId) {
+            onlinePlayersList = onlinePlayersList.filter(p => p.id !== peerId);
+            clientConnections = clientConnections.filter(c => c.peerId !== peerId);
+            broadcastLobbyState();
+            updateLobbyUI();
         }
 
-        function startMultiplayerHostGame() {
-            gameState.players.push({
-                id: 1,
-                seatKey: 'seat-top',
-                name: "بازیکن مهمان",
+        function exitRoomLobby() {
+            document.getElementById('room-lobby-view').classList.add('hidden');
+            document.getElementById('main-menu').classList.remove('hidden');
+
+            if (isHost) {
+                clientConnections.forEach(c => { if (c.conn) c.conn.close(); });
+                clientConnections = [];
+            } else {
+                if (hostPeerConn && hostPeerConn.open) {
+                    hostPeerConn.send({ type: 'LEAVE_ROOM' });
+                    hostPeerConn.close();
+                }
+            }
+            if (peer) { peer.destroy(); peer = null; }
+        }
+
+        function hostStartOnlineGame() {
+            if (!isHost) return;
+            if (onlinePlayersList.length < 2) {
+                showLobbyError("حداقل ۲ نفر برای شروع بازی لازم است!");
+                return;
+            }
+            const unready = onlinePlayersList.filter(p => !p.isReady && !p.isHost);
+            if (unready.length > 0) {
+                showLobbyError("همه بازیکنان باید دکمه آماده (Ready) را بزنند!");
+                return;
+            }
+
+            // Build online game players array
+            gameState.players = onlinePlayersList.map((op, idx) => ({
+                id: idx,
+                peerId: op.id,
+                seatKey: ['seat-bottom', 'seat-right', 'seat-top', 'seat-left'][idx],
+                name: op.name,
                 isBot: false,
                 hp: 5,
                 maxHp: 5,
                 items: [],
                 isHandcuffed: false,
                 isDead: false
-            });
+            }));
+
+            gameState.round = 1;
+            document.getElementById('room-lobby-view').classList.add('hidden');
             setupSeatsUI();
             startRound();
+
+            // Broadcast start game to all clients
+            clientConnections.forEach(c => {
+                if (c.conn && c.conn.open) {
+                    c.conn.send({ type: 'START_GAME', gameState: gameState });
+                }
+            });
         }
 
-        function handleRemoteAction(action) {
-            if (action.type === 'shoot') {
-                const shooter = gameState.players.find(p => p.id === action.shooterId);
-                const target = gameState.players.find(p => p.id === action.targetId);
-                executeShot(shooter, target);
-            }
-            broadcastState();
+        function startOnlineMatch(initialState) {
+            gameState = initialState;
+            setupSeatsUI();
+            updateUI();
+            setStatus("بازی آنلاین شروع شد!");
         }
 
         function startSinglePlayerGame() {
@@ -1016,7 +1246,6 @@
             const humanName = document.getElementById('player-name-input').value.trim() || t('defaultPlayerName');
 
             gameState.players = [];
-            // Index 0: Human Player (Bottom)
             gameState.players.push({
                 id: 0,
                 seatKey: 'seat-bottom',
@@ -1029,7 +1258,6 @@
                 isDead: false
             });
 
-            // Bot 1 (Right, id: 3 in seat array or index 1 if 2 players)
             if (selectedPlayerCount >= 2) {
                 gameState.players.push({
                     id: 3,
@@ -1071,7 +1299,6 @@
             }
 
             gameState.round = 1;
-            
             setupSeatsUI();
             startRound();
         }
@@ -1091,10 +1318,9 @@
 
         function startRound() {
             if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
-            gameState.isProcessing = false;
             gameState.isSawed = false;
             gameState.knownShells = {};
-            turnDirection = -1; // Default counter-clockwise direction
+            turnDirection = -1;
             document.getElementById('shotgun-text').classList.remove('sawed-off');
 
             gameState.magazine = generateMagazine();
@@ -1104,13 +1330,10 @@
                 if (!p.isDead) addItems(p, itemsCount);
             });
 
-            // Determine starting player based on difficulty
-            if (selectedDifficulty === 'easy' || selectedDifficulty === 'normal') {
-                // Always start with Human Player (id 0)
+            if (!isMultiplayer && (selectedDifficulty === 'easy' || selectedDifficulty === 'normal')) {
                 const humanIdx = gameState.players.findIndex(p => p.id === 0);
                 gameState.activePlayerIdx = humanIdx !== -1 ? humanIdx : 0;
             } else {
-                // Hard & Impossible: Randomly pick one alive player
                 const aliveIndices = [];
                 gameState.players.forEach((p, idx) => { if (!p.isDead) aliveIndices.push(idx); });
                 gameState.activePlayerIdx = aliveIndices[Math.floor(Math.random() * aliveIndices.length)];
@@ -1177,7 +1400,9 @@
 
             updateUI();
 
-            if (!activePlayer.isBot) {
+            const isMyTurnOnline = isMultiplayer && ((isHost && gameState.activePlayerIdx === 0) || (!isHost && gameState.players[gameState.activePlayerIdx].peerId === myClientId));
+
+            if (!activePlayer.isBot && (!isMultiplayer || isMyTurnOnline)) {
                 setStatus(t('statusYourTurn', activePlayer.name));
                 document.getElementById('turn-timer-box').classList.remove('hidden');
                 toggleControls(true);
@@ -1203,13 +1428,18 @@
                     }
                 }, 1000);
 
-            } else {
+            } else if (activePlayer.isBot) {
                 if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
                 document.getElementById('turn-timer-box').classList.add('hidden');
                 toggleControls(false);
                 setStatus(t('statusBotTurn', activePlayer.name));
                 gameState.isProcessing = true;
                 setTimeout(() => runBotAI(activePlayer), 2000);
+            } else {
+                if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+                document.getElementById('turn-timer-box').classList.add('hidden');
+                toggleControls(false);
+                setStatus(`نوبت ${activePlayer.name} است...`);
             }
         }
 
@@ -1217,12 +1447,10 @@
             if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
             document.getElementById('turn-timer-box').classList.add('hidden');
 
-            // Find order of living players following physical table layout
             const layoutOrder = ['seat-bottom', 'seat-right', 'seat-top', 'seat-left'];
             let activeSeatKey = gameState.players[gameState.activePlayerIdx].seatKey;
             let currentLayoutIdx = layoutOrder.indexOf(activeSeatKey);
 
-            // Find next available living player in layout order based on turnDirection (-1 counter-clockwise, 1 clockwise)
             let nextLayoutIdx = currentLayoutIdx;
             let nextPlayer = null;
             let nextPlayerIdx = -1;
@@ -1246,22 +1474,26 @@
         function playerAction(type) {
             if (gameState.isProcessing) return;
 
-            let humanPlayer = gameState.players[0];
-            if (gameState.players[gameState.activePlayerIdx].id !== humanPlayer.id) return;
-
-            if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
-            document.getElementById('turn-timer-box').classList.add('hidden');
-
+            let activePlayer = gameState.players[gameState.activePlayerIdx];
+            
             if (type === 'self') {
                 gameState.isProcessing = true;
                 toggleControls(false);
-                executeShot(humanPlayer, humanPlayer);
+                if (isMultiplayer && !isHost) {
+                    hostPeerConn.send({ type: 'PLAYER_ACTION', action: { type: 'shoot', shooterId: activePlayer.id, targetId: activePlayer.id } });
+                } else {
+                    executeShot(activePlayer, activePlayer);
+                }
             } else if (type === 'opponent') {
-                const livingOpponents = gameState.players.filter(p => !p.isDead && p.id !== humanPlayer.id);
+                const livingOpponents = gameState.players.filter(p => !p.isDead && p.id !== activePlayer.id);
                 if (livingOpponents.length === 1) {
                     gameState.isProcessing = true;
                     toggleControls(false);
-                    executeShot(humanPlayer, livingOpponents[0]);
+                    if (isMultiplayer && !isHost) {
+                        hostPeerConn.send({ type: 'PLAYER_ACTION', action: { type: 'shoot', shooterId: activePlayer.id, targetId: livingOpponents[0].id } });
+                    } else {
+                        executeShot(activePlayer, livingOpponents[0]);
+                    }
                 } else {
                     openTargetModal(livingOpponents);
                 }
@@ -1279,7 +1511,12 @@
                     closeTargetModal();
                     gameState.isProcessing = true;
                     toggleControls(false);
-                    executeShot(gameState.players[0], opp);
+                    const activePlayer = gameState.players[gameState.activePlayerIdx];
+                    if (isMultiplayer && !isHost) {
+                        hostPeerConn.send({ type: 'PLAYER_ACTION', action: { type: 'shoot', shooterId: activePlayer.id, targetId: opp.id } });
+                    } else {
+                        executeShot(activePlayer, opp);
+                    }
                 };
                 container.appendChild(btn);
             });
@@ -1333,6 +1570,17 @@
                     }
                 }, 2000);
             }
+
+            if (isMultiplayer && isHost) broadcastGameState();
+        }
+
+        function broadcastGameState() {
+            if (!isHost) return;
+            clientConnections.forEach(c => {
+                if (c.conn && c.conn.open) {
+                    c.conn.send({ type: 'SYNC_STATE', state: gameState });
+                }
+            });
         }
 
         function runBotAI(bot) {
@@ -1391,10 +1639,11 @@
                 target.isHandcuffed = true;
                 setStatus(t('statusHandcuffsUsed', player.name, target.name));
             } else if (itemKey === 'reverse') {
-                turnDirection *= -1; // Flip turn rotation direction between -1 and 1
+                turnDirection *= -1;
                 setStatus(t('statusReverse', player.name, turnDirection === -1 ? t('dirCounter') : t('dirClockwise')));
             }
             updateUI();
+            if (isMultiplayer && isHost) broadcastGameState();
         }
 
         function triggerShake() {
@@ -1457,16 +1706,19 @@
                     slot.innerHTML = ITEMS_DEF[itemKey].icon;
                     slot.title = ITEMS_DEF[itemKey].nameFa;
                     
-                    if (!p.isBot && idx === gameState.activePlayerIdx && !gameState.isProcessing) {
-                        slot.onclick = () => handleItemClick(itemKey, p);
+                    const isMySeatOnline = isMultiplayer && ((isHost && idx === 0) || (!isHost && p.peerId === myClientId));
+                    if ((!isMultiplayer && idx === 0) || (isMultiplayer && isMySeatOnline)) {
+                        if (idx === gameState.activePlayerIdx && !gameState.isProcessing) {
+                            slot.onclick = () => handleItemClick(itemKey, p);
+                        } else {
+                            slot.classList.add('disabled');
+                        }
                     } else {
                         slot.classList.add('disabled');
                     }
                     itemsContainer.appendChild(slot);
                 });
             });
-
-            if (isMultiplayer && isHost) broadcastState();
         }
 
         function handleItemClick(itemKey, player) {
@@ -1566,7 +1818,7 @@
             const msgEl = document.getElementById('end-msg');
             const iconEl = document.getElementById('end-icon');
 
-            if (winner && winner.id === 0) {
+            if (winner && ((!isMultiplayer && winner.id === 0) || (isMultiplayer && winner.peerId === myClientId))) {
                 iconEl.innerText = '🏆';
                 titleEl.innerText = 'پیروزی بزرگ!';
                 titleEl.className = 'text-3xl font-black text-emerald-400 mb-2';
