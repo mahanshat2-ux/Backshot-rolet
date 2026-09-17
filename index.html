@@ -1012,20 +1012,18 @@
                     return;
                 }
 
-                conn.on('open', () => {
-                    // Send current room state
-                    conn.send({ type: 'WELCOME', players: onlinePlayersList });
-                });
-
                 conn.on('data', (data) => {
                     if (data.type === 'JOIN_REQUEST') {
                         if (onlinePlayersList.length >= 4) {
                             conn.send({ type: 'ROOM_FULL_ERROR', message: 'اتاق ۴ نفره پر است!' });
                             return;
                         }
-                        const newPlayer = { id: conn.peer, name: data.name, isReady: false, isHost: false, conn: conn };
+                        const newPlayer = { id: conn.peer, name: data.name, isReady: false, isHost: false };
                         onlinePlayersList.push(newPlayer);
                         clientConnections.push({ peerId: conn.peer, conn: conn });
+                        
+                        // Send welcome & current room state to new client
+                        conn.send({ type: 'WELCOME', players: getCleanLobbyList() });
                         broadcastLobbyState();
                         updateLobbyUI();
                     } else if (data.type === 'TOGGLE_READY') {
@@ -1037,6 +1035,8 @@
                         }
                     } else if (data.type === 'CLIENT_DISCONNECT' || data.type === 'LEAVE_ROOM') {
                         removeClientFromLobby(conn.peer);
+                    } else if (data.type === 'PLAYER_ACTION') {
+                        handleClientAction(conn.peer, data.action);
                     }
                 });
 
@@ -1060,25 +1060,44 @@
             const statusBox = document.getElementById('multi-status-box');
             statusBox.classList.remove('hidden');
             statusBox.innerText = "در حال اتصال به میزبان...";
+            document.getElementById('multi-error-box').classList.add('hidden');
 
             if (peer) { peer.destroy(); }
             peer = new Peer();
 
+            let isConnectedToHost = false;
+            let joinTimeout = null;
+
             peer.on('open', (id) => {
                 myClientId = id;
-                hostPeerConn = peer.connect(code);
+                hostPeerConn = peer.connect(code, { reliable: true });
+
+                // Set a timeout to verify if room code exists
+                joinTimeout = setTimeout(() => {
+                    if (!isConnectedToHost) {
+                        showMultiError("کد اتاق نامعتبر است یا میزبان آنلاین نیست.");
+                        if (hostPeerConn) { try { hostPeerConn.close(); } catch(e){} }
+                        if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
+                        statusBox.classList.add('hidden');
+                    }
+                }, 7000);
 
                 hostPeerConn.on('open', () => {
+                    isConnectedToHost = true;
+                    if (joinTimeout) clearTimeout(joinTimeout);
+                    statusBox.innerText = "ارتباط برقرار شد! در حال دریافت اطلاعات لابی...";
                     hostPeerConn.send({ type: 'JOIN_REQUEST', name: myClientName });
                 });
 
                 hostPeerConn.on('data', (data) => {
                     if (data.type === 'ROOM_FULL_ERROR') {
                         showMultiError(data.message);
-                        hostPeerConn.close();
-                    } else if (data.type === 'LOBBY_UPDATE') {
+                        if (hostPeerConn) hostPeerConn.close();
+                        if (peer) { peer.destroy(); peer = null; }
+                    } else if (data.type === 'WELCOME' || data.type === 'LOBBY_UPDATE') {
                         onlinePlayersList = data.players;
-                        updateLobbyUI();
+                        document.getElementById('multi-menu').classList.add('hidden');
+                        openRoomLobbyView();
                     } else if (data.type === 'START_GAME') {
                         document.getElementById('room-lobby-view').classList.add('hidden');
                         startOnlineMatch(data.gameState);
@@ -1092,23 +1111,60 @@
                 });
 
                 hostPeerConn.on('error', (err) => {
-                    showMultiError(`خطا در اتصال به میزبان: ${err}`);
+                    if (joinTimeout) clearTimeout(joinTimeout);
+                    showMultiError("کد اتاق اشتباه است یا خطا در اتصال پیش آمده.");
                 });
 
                 hostPeerConn.on('close', () => {
-                    showMultiError("ارتباط با میزبان قطع شد.");
-                    exitRoomLobby();
+                    if (isConnectedToHost) {
+                        showMultiError("ارتباط با میزبان قطع شد.");
+                        exitRoomLobby();
+                    }
                 });
-
-                setTimeout(() => {
-                    document.getElementById('multi-menu').classList.add('hidden');
-                    openRoomLobbyView();
-                }, 1000);
             });
 
             peer.on('error', (err) => {
-                showMultiError(`خطای شبکه: ${err.type}`);
+                if (joinTimeout) clearTimeout(joinTimeout);
+                if (err.type === 'peer-unavailable') {
+                    showMultiError("کد اتاق وارد شده اشتباه است یا میزبان آفلاین می‌باشد.");
+                } else {
+                    showMultiError(`خطای شبکه: ${err.type}`);
+                }
             });
+        }
+
+        function getCleanLobbyList() {
+            return onlinePlayersList.map(p => ({
+                id: p.id,
+                name: p.name,
+                isReady: p.isReady,
+                isHost: p.isHost
+            }));
+        }
+
+        function broadcastLobbyState() {
+            if (!isHost) return;
+            const cleanList = getCleanLobbyList();
+            clientConnections.forEach(c => {
+                if (c.conn && c.conn.open) {
+                    c.conn.send({ type: 'LOBBY_UPDATE', players: cleanList });
+                }
+            });
+        }
+
+        function handleClientAction(senderPeerId, action) {
+            if (!isHost) return;
+            const activePlayer = gameState.players[gameState.activePlayerIdx];
+            if (!activePlayer || activePlayer.peerId !== senderPeerId) return;
+
+            if (action.type === 'shoot') {
+                const shooter = gameState.players.find(p => p.id === action.shooterId);
+                const target = gameState.players.find(p => p.id === action.targetId);
+                if (shooter && target) {
+                    gameState.isProcessing = true;
+                    executeShot(shooter, target);
+                }
+            }
         }
 
         function openRoomLobbyView() {
